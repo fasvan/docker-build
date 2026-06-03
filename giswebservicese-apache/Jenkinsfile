@@ -46,8 +46,8 @@ pipeline {
             steps {
                 dir('giswebservicese-apache') {
                     script {
-                        // Собираем образ с использованием Docker Pipeline
-                        docker.build("${IMAGE_NAME}:${APP_VERSION}", ".")
+                        // Собираем образ
+                        sh "docker build -t ${IMAGE_NAME}:${APP_VERSION} ."
                     }
                 }
             }
@@ -56,17 +56,13 @@ pipeline {
         stage('Tag and Push Image') {
             steps {
                 script {
-                    // Используем Docker Pipeline API для работы с реестром
                     docker.withRegistry("http://${REGISTRY}", DOCKER_REGISTRY_CREDENTIALS) {
-                        // Ссылаемся на уже собранный образ
-                        def image = docker.image("${IMAGE_NAME}:${APP_VERSION}")
-                        
-                        // Тегируем образ для реестра (аналог docker tag)
-                        image.tag("${REGISTRY_PATH}/${IMAGE_NAME}:${APP_VERSION}")
-                        
-                        // Отправляем образ в реестр (аналог docker push)
-                        echo "Отправляем образ в реестр ${REGISTRY}..."
-                        image.push()
+                        // Тегируем образ
+                        sh """
+                            docker tag ${IMAGE_NAME}:${APP_VERSION} ${REGISTRY_PATH}/${IMAGE_NAME}:${APP_VERSION}
+                            echo "Отправляем образ в реестр ${REGISTRY}..."
+                            docker push ${REGISTRY_PATH}/${IMAGE_NAME}:${APP_VERSION}
+                        """
                     }
                 }
             }
@@ -83,18 +79,11 @@ pipeline {
         always {
             // Очистка — удаляем локальные образы и скачанный deb-файл
             dir('giswebservicese-apache') {
-                script {
-                    // Используем Docker Pipeline API для удаления образов
-                    // Вместо: sh "docker rmi ..."
-                    def localImage = docker.image("${IMAGE_NAME}:${APP_VERSION}")
-                    localImage.remove()
-                    
-                    def registryImage = docker.image("${REGISTRY_PATH}/${IMAGE_NAME}:${APP_VERSION}")
-                    registryImage.remove()
-                    
-                    // Удаляем скачанный deb-файл
-                    sh "rm -f giswebservicese.deb"
-                }
+                sh """
+                    docker rmi ${IMAGE_NAME}:${APP_VERSION} || true
+                    docker rmi ${REGISTRY_PATH}/${IMAGE_NAME}:${APP_VERSION} || true
+                    rm -f giswebservicese.deb
+                """
             }
         }
     }
