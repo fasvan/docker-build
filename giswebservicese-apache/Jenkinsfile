@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        // Версия из вашего примера
+        // Версия сборки (тега)
         APP_VERSION = '15.15.5-1617'
         // Имя образа
         IMAGE_NAME = 'giswebservicese-apache'
