@@ -10,7 +10,7 @@ pipeline {
         REGISTRY = '192.168.1.166:80'
         REGISTRY_PATH = "${REGISTRY}/giswebservicese"
         // Ссылка на deb-пакет в Nexus
-        NEXUS_DEB_URL = 'http://192.168.1.9/repository/gwservice/prot/astra_16/devel/giswebservicese/15.15.5-1617/giswebservicese-15.15.5-1617.deb'
+        NEXUS_DEB_URL = 'http://192.168.1.9:8081/repository/gwservice/prot/astra_16/devel/giswebservicese/15.15.5-1617/giswebservicese-15.15.5-1617.deb'
         // ID из Jenkins учетных данных для Docker Registry
         DOCKER_REGISTRY_CREDENTIALS = 'Harbor_166'
     }
