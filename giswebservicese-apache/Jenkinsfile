@@ -1,0 +1,91 @@
+pipeline {
+    agent any
+
+    environment {
+        // Версия из вашего примера
+        APP_VERSION = '15.15.5-1617'
+        // Имя образа
+        IMAGE_NAME = 'giswebservicese-apache'
+        // Ваш реестр
+        REGISTRY = '192.168.1.166:80'
+        REGISTRY_PATH = "${REGISTRY}/giswebservicese"
+        // Ссылка на deb-пакет в Nexus
+        NEXUS_DEB_URL = 'http://nexus.panorama.local/repository/gwservice/prot/astra_16/devel/giswebservicese/15.15.5-1617/giswebservicese-15.15.5-1617.deb'
+        // ID из Jenkins учетных данных для Docker Registry
+        DOCKER_REGISTRY_CREDENTIALS = 'Harbor_166'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // Забираем код из GitHub
+                git branch: 'main',
+                    url: 'https://github.com/fasvan/docker-build.git',
+                    credentialsId: 'github-token'  // ID из Jenkins
+            }
+        }
+
+        stage('Download deb package') {
+            steps {
+                // Переходим в нужную папку
+                dir('giswebservicese-apache') {
+                    sh """
+                        echo "Скачиваем deb-пакет из Nexus..."
+                        curl -L -o giswebservicese.deb ${NEXUS_DEB_URL}
+                        if [ ! -f giswebservicese.deb ]; then
+                            echo "ОШИБКА: Не удалось скачать deb-пакет"
+                            exit 1
+                        fi
+                        ls -la giswebservicese.deb
+                    """
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                dir('giswebservicese-apache') {
+                    script {
+                        // Собираем образ
+                        sh "docker build -t ${IMAGE_NAME}:${APP_VERSION} ."
+                    }
+                }
+            }
+        }
+
+        stage('Tag and Push Image') {
+            steps {
+                script {
+                    // Если нужна авторизация в реестре — раскомментируйте следующие строки
+                    docker.withRegistry("http://${REGISTRY}", 'DOCKER_REGISTRY_CREDENTIALS') {
+                        // Тегируем образ
+                        sh """
+                            docker tag ${IMAGE_NAME}:${APP_VERSION} ${REGISTRY_PATH}/${IMAGE_NAME}:${APP_VERSION}
+                            echo "Отправляем образ в реестр ${REGISTRY}..."
+                            docker push ${REGISTRY_PATH}/${IMAGE_NAME}:${APP_VERSION}
+                        """
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "✅ Успех! Образ ${REGISTRY_PATH}/${IMAGE_NAME}:${APP_VERSION} собран и отправлен."
+        }
+        failure {
+            echo "❌ Сборка не удалась. Проверьте логи выше."
+        }
+        always {
+            // Очистка — удаляем локальные образы и скачанный deb-файл
+            dir('giswebservicese-apache') {
+                sh """
+                    docker rmi ${IMAGE_NAME}:${APP_VERSION} || true
+                    docker rmi ${REGISTRY_PATH}/${IMAGE_NAME}:${APP_VERSION} || true
+                    rm -f giswebservicese.deb
+                """
+            }
+        }
+    }
+}
