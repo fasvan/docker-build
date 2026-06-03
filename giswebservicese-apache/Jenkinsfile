@@ -72,10 +72,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Успех! Образ ${REGISTRY_PATH}/${IMAGE_NAME}:${APP_VERSION} собран и отправлен."
+            echo "Успех! Образ ${REGISTRY_PATH}/${IMAGE_NAME}:${APP_VERSION} собран и отправлен."
         }
         failure {
-            echo "❌ Сборка не удалась. Проверьте логи выше."
+            echo "Сборка не удалась. Проверьте логи выше."
         }
         always {
             // Очистка — удаляем локальные образы и скачанный deb-файл
