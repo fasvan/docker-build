@@ -1,0 +1,40 @@
+stage ("Build and Push Docker Image")
+{
+    when
+    {
+        // Собираем Docker образ только для astra-1.6 и если включен параметр
+        expression { params.BUILD_DOCKER_IMAGE && env.OS_NAME == 'astra-1.6' && params.PACK_INSTALLS }
+    }
+    steps
+    {
+        script {
+            // Получаем credentials для Docker registry
+            withCredentials([[
+                $class: 'UsernamePasswordMultiBinding',
+                credentialsId: 'Harbor_166',
+                usernameVariable: 'DOCKER_REGISTRY_USER',
+                passwordVariable: 'DOCKER_REGISTRY_PASSWORD'
+            ]]) {
+                sh """
+                    chmod +x ./.docker/build-and-push-docker.sh
+                    export BUILD_NUMBER="${env.BUILD_NUMBER}"
+                    bash ./.docker/build-and-push-docker.sh
+                """
+            }
+        }
+    }
+    post
+    {
+        success
+        {
+            script
+            {
+                if (params.SEND_CHAT_MESSAGES)
+                {
+                    def dockerImagePath = "192.168.1.166:80/giswebservicese/giswebservicese-apache:${env.BUILD_NUMBER}"
+                    sendRocketMessage('giswebservicese-docker', 'astra-1.6', 'protected', 'success', getRocketChannel(), " Docker image: ${dockerImagePath}")
+                }
+            }
+        }
+    }
+}
